@@ -1,0 +1,13 @@
+name: notareon-frontend
+
+services:
+  frontend:
+    image: notareon/frontend:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # URL браузера до API (бэк должен быть доступен с твоей машины, см. notareon-server)
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
