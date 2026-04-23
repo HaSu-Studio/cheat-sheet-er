@@ -86,7 +86,7 @@ const formatDate = (dateString: string): string => {
 </script>
 
 <template>
-  <main class="max-w-4xl mx-auto px-6 py-8">
+  <main class="mx-auto w-full max-w-[90vw] px-6 py-8">
     <!-- Navigation -->
     <div class="mb-6">
       <AppButton

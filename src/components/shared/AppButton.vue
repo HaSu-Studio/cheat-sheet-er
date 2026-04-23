@@ -29,8 +29,8 @@ const emit = defineEmits<{
 const buttonClasses = computed(() => {
   const isLink = props.variant === 'link'
   const baseClasses = isLink
-    ? 'font-medium transition-colors inline-flex items-center gap-2'
-    : 'font-medium transition-colors rounded-md flex items-center justify-center gap-2'
+    ? 'font-medium transition-colors duration-200 inline-flex items-center gap-2'
+    : 'font-medium transition-colors duration-200 rounded-md flex items-center justify-center gap-2'
 
   const sizeClasses = {
     sm: isLink ? 'text-sm' : 'px-3 py-1.5 text-sm',

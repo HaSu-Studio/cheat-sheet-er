@@ -2,6 +2,58 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { CheatSheet, CheatSheetInput, CheatSheetUpdate } from '@/types'
 import { api } from '@/services/api'
+import { useLocalStorage } from '@/composables/useLocalStorage'
+
+interface CardLayout {
+  colSpan: number
+  rowSpan: number
+}
+
+type CardLayoutMap = Record<string, CardLayout>
+
+const CARD_LAYOUT_STORAGE_KEY = 'cheat-sheet-card-layout-v1'
+const CARD_LAYOUT_LIMITS = {
+  minColSpan: 1,
+  maxColSpan: 4,
+  minRowSpan: 7,
+  maxRowSpan: 120,
+} as const
+
+const clamp = (value: number, min: number, max: number): number => {
+  return Math.min(max, Math.max(min, value))
+}
+
+const sanitizeCardLayout = (value: unknown): CardLayout | null => {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Partial<CardLayout>
+  const colSpan = raw.colSpan
+  const rowSpan = raw.rowSpan
+  if (typeof colSpan !== 'number' || !Number.isFinite(colSpan)) {
+    return null
+  }
+  if (typeof rowSpan !== 'number' || !Number.isFinite(rowSpan)) {
+    return null
+  }
+  return {
+    colSpan: clamp(Math.round(colSpan), CARD_LAYOUT_LIMITS.minColSpan, CARD_LAYOUT_LIMITS.maxColSpan),
+    rowSpan: clamp(Math.round(rowSpan), CARD_LAYOUT_LIMITS.minRowSpan, CARD_LAYOUT_LIMITS.maxRowSpan),
+  }
+}
+
+const sanitizeCardLayouts = (value: unknown): CardLayoutMap => {
+  if (!value || typeof value !== 'object') return {}
+  const raw = value as Record<string, unknown>
+  const normalized: CardLayoutMap = {}
+
+  Object.entries(raw).forEach(([id, layout]) => {
+    const clean = sanitizeCardLayout(layout)
+    if (clean) {
+      normalized[id] = clean
+    }
+  })
+
+  return normalized
+}
 
 export const useCheatSheetsStore = defineStore('cheatSheets', () => {
   const cheatSheets = ref<CheatSheet[]>([])
@@ -9,6 +61,31 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
   const searchQuery = ref<string>('')
   const activeCategory = ref<string | null>(null)
   const isLoading = ref<boolean>(false)
+  const storage = useLocalStorage<CardLayoutMap>(CARD_LAYOUT_STORAGE_KEY, {})
+  const cardLayouts = ref<CardLayoutMap>(sanitizeCardLayouts(storage.getItem()))
+
+  const persistCardLayouts = (): void => {
+    storage.setItem(cardLayouts.value)
+  }
+
+  const syncCardLayouts = (): void => {
+    const validIds: Set<string> = new Set(cheatSheets.value.map((sheet) => sheet.id))
+    const nextLayouts: CardLayoutMap = {}
+    let hasChanges = false
+
+    Object.entries(cardLayouts.value).forEach(([id, layout]) => {
+      if (validIds.has(id)) {
+        nextLayouts[id] = layout
+      } else {
+        hasChanges = true
+      }
+    })
+
+    if (hasChanges) {
+      cardLayouts.value = nextLayouts
+      persistCardLayouts()
+    }
+  }
 
   // Getters
   const filteredCheatSheets = computed<CheatSheet[]>(() => {
@@ -25,7 +102,6 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
       filtered = filtered.filter(
         (sheet) =>
           sheet.title.toLowerCase().includes(query) ||
-          sheet.description.toLowerCase().includes(query) ||
           sheet.category.toLowerCase().includes(query) ||
           sheet.content.toLowerCase().includes(query),
       )
@@ -63,6 +139,7 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     try {
       const sheets: CheatSheet[] = await api.getCheatSheets()
       cheatSheets.value = sheets
+      syncCardLayouts()
     } catch (error) {
       console.error('Failed to fetch cheat sheets:', error)
       throw error
@@ -128,6 +205,7 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     try {
       const newSheet: CheatSheet = await api.createCheatSheet(input)
       cheatSheets.value.unshift(newSheet)
+      syncCardLayouts()
       return newSheet
     } catch (error) {
       console.error('Failed to add cheat sheet:', error)
@@ -155,10 +233,34 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
       if (index !== -1) {
         cheatSheets.value.splice(index, 1)
       }
+      if (cardLayouts.value[id]) {
+        const nextLayouts: CardLayoutMap = { ...cardLayouts.value }
+        delete nextLayouts[id]
+        cardLayouts.value = nextLayouts
+        persistCardLayouts()
+      }
     } catch (error) {
       console.error('Failed to delete cheat sheet:', error)
       throw error
     }
+  }
+
+  const setCardLayout = (id: string, layout: CardLayout): void => {
+    const sanitized = sanitizeCardLayout(layout)
+    if (!sanitized) return
+    cardLayouts.value = {
+      ...cardLayouts.value,
+      [id]: sanitized,
+    }
+    persistCardLayouts()
+  }
+
+  const clearCardLayout = (id: string): void => {
+    if (!cardLayouts.value[id]) return
+    const nextLayouts: CardLayoutMap = { ...cardLayouts.value }
+    delete nextLayouts[id]
+    cardLayouts.value = nextLayouts
+    persistCardLayouts()
   }
 
   const setSearchQuery = (query: string): void => {
@@ -179,6 +281,8 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     searchQuery: computed(() => searchQuery.value),
     activeCategory: computed(() => activeCategory.value),
     isLoading: computed(() => isLoading.value),
+    cardLayouts: computed(() => cardLayouts.value),
+    cardLayoutLimits: CARD_LAYOUT_LIMITS,
 
     // Getters
     filteredCheatSheets,
@@ -192,6 +296,8 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     addCheatSheet,
     updateCheatSheet,
     deleteCheatSheet,
+    setCardLayout,
+    clearCardLayout,
     setSearchQuery,
     clearSearch,
     setActiveCategory,

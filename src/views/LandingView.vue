@@ -11,7 +11,7 @@ const { navigateToLogin: goToLogin, navigateToRegister: goToRegister } = useNavi
   <div class="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
     <!-- Hero Section -->
     <section class="relative overflow-hidden">
-      <div class="max-w-7xl mx-auto px-6 py-20">
+      <div class="mx-auto w-full max-w-[90vw] px-6 py-20">
         <div class="text-center">
           <h1 class="text-5xl md:text-6xl font-bold mb-6">
             <span class="text-[var(--color-text-primary)]">Notareon</span>
@@ -44,7 +44,7 @@ const { navigateToLogin: goToLogin, navigateToRegister: goToRegister } = useNavi
 
     <!-- Features Section -->
     <section class="py-20 bg-[var(--color-bg-secondary)]">
-      <div class="max-w-7xl mx-auto px-6">
+      <div class="mx-auto w-full max-w-[90vw] px-6">
         <div class="text-center mb-16">
           <h2 class="text-4xl font-bold text-[var(--color-text-primary)] mb-4">
             Why Choose Notareon?
@@ -90,8 +90,8 @@ const { navigateToLogin: goToLogin, navigateToRegister: goToRegister } = useNavi
               Quick Search
             </h3>
             <p class="text-[var(--color-text-secondary)]">
-              Find any cheat sheet instantly with our powerful search functionality that searches
-              through titles, descriptions, and content.
+              Find any cheat sheet instantly with our powerful search across titles, categories,
+              and content.
             </p>
           </div>
 
@@ -120,7 +120,7 @@ const { navigateToLogin: goToLogin, navigateToRegister: goToRegister } = useNavi
 
     <!-- How it Works Section -->
     <section class="py-20">
-      <div class="max-w-7xl mx-auto px-6">
+      <div class="mx-auto w-full max-w-[90vw] px-6">
         <div class="text-center mb-16">
           <h2 class="text-4xl font-bold text-[var(--color-text-primary)] mb-4">How It Works</h2>
           <p class="text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
@@ -210,7 +210,7 @@ const { navigateToLogin: goToLogin, navigateToRegister: goToRegister } = useNavi
 
     <!-- Footer -->
     <footer class="py-8 border-t border-[var(--color-border)]">
-      <div class="max-w-7xl mx-auto px-6 text-center">
+      <div class="mx-auto w-full max-w-[90vw] px-6 text-center">
         <p class="text-sm text-[var(--color-text-secondary)]">
           © {{ year }} Notareon by
           <span class="text-[var(--color-text-primary)] font-medium">HaSu Studios</span>

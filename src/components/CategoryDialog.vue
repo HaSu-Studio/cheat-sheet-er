@@ -75,7 +75,7 @@ const handleClose = (): void => {
               Create New Category
             </h2>
             <button
-              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors duration-200"
               @click="handleClose"
             >
               <font-awesome-icon icon="times" class="w-5 h-5" />
@@ -91,7 +91,7 @@ const handleClose = (): void => {
                 v-model="categoryName"
                 type="text"
                 placeholder="e.g. JavaScript, Python, CSS..."
-                class="w-full rounded px-3 py-2 bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors"
+                class="w-full rounded px-3 py-2 bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors duration-200"
                 :class="error ? 'border-red-500' : 'border-[var(--color-border)]'"
                 autofocus
                 @input="error = ''"

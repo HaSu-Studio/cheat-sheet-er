@@ -27,9 +27,9 @@ const handleLogoClick = (): void => {
 
 <template>
   <header class="border-b border-[var(--color-border)]">
-    <div class="max-w-7xl mx-auto px-6 py-4">
+    <div class="mx-auto w-full max-w-[90vw] px-4 py-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between">
-        <button @click="handleLogoClick" class="text-left hover:opacity-80 transition-opacity">
+        <button @click="handleLogoClick" class="text-left hover:opacity-80 transition-opacity duration-200">
           <h1 class="text-2xl font-light text-[var(--color-text-primary)]">Notareon</h1>
           <p class="text-sm mt-1 text-[var(--color-text-primary)] opacity-80">
             Your personal cheat sheets collection
@@ -67,14 +67,14 @@ const handleLogoClick = (): void => {
           <div class="flex items-center space-x-2">
             <button
               @click="handleProfile"
-              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors duration-200"
               title="Profile"
             >
               <font-awesome-icon icon="user" class="w-5 h-5" />
             </button>
             <button
               @click="handleLogout"
-              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors duration-200"
               title="Sign Out"
             >
               <font-awesome-icon icon="sign-out-alt" class="w-5 h-5" />

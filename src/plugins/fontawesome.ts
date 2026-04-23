@@ -21,6 +21,7 @@ import {
   faLock,
   faSliders,
   faCheck,
+  faEllipsisVertical,
 } from '@fortawesome/free-solid-svg-icons'
 
 // Regular icons
@@ -56,6 +57,7 @@ library.add(
   faLock,
   faSliders,
   faCheck,
+  faEllipsisVertical,
 )
 
 // Regular icons

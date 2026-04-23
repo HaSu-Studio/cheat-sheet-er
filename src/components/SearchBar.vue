@@ -14,13 +14,13 @@ const handleInput = (event: Event): void => {
 </script>
 
 <template>
-  <div class="mb-8">
-    <div class="relative max-w-md">
+  <div class="w-full">
+    <div class="relative w-full">
       <input
         :value="modelValue"
         type="text"
         placeholder="Search cheat sheets..."
-        class="w-full rounded-lg px-4 py-3 pl-10 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-border-hover)] transition-colors"
+        class="w-full rounded-lg px-4 py-3 pl-10 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-border-hover)] transition-colors duration-200"
         @input="handleInput"
       />
       <font-awesome-icon

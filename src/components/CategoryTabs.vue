@@ -6,7 +6,6 @@ defineProps<CategoryTabsProps>()
 
 const emit = defineEmits<{
   'update:activeCategory': [category: string | null]
-  'create-in-category': [category: string]
   'create-category': []
   'delete-category': [category: string]
 }>()
@@ -20,11 +19,13 @@ const handleDeleteCategory = (event: Event, category: string): void => {
 </script>
 
 <template>
-  <div class="mb-6">
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2 overflow-x-auto pb-2 flex-1">
+  <div
+    class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/80 p-3 sm:p-4"
+  >
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-3">
+      <div class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
         <button
-          class="px-4 py-2 rounded-lg whitespace-nowrap transition-all"
+          class="px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200"
           :class="
             activeCategory === null
               ? 'bg-[var(--color-bg-accent)] text-[var(--color-text-primary)] border border-[var(--color-bg-accent)]'
@@ -39,7 +40,7 @@ const handleDeleteCategory = (event: Event, category: string): void => {
         <button
           v-for="category in categories"
           :key="category"
-          class="px-4 py-2 rounded-lg whitespace-nowrap transition-all border category-tab group/tab relative"
+          class="px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 border category-tab group/tab relative"
           :style="getCategoryStyles(category, activeCategory === category)"
           @click="emit('update:activeCategory', category)"
         >
@@ -47,7 +48,7 @@ const handleDeleteCategory = (event: Event, category: string): void => {
             <span>{{ category }}</span>
             <span class="opacity-70">({{ categoryCounts[category] || 0 }})</span>
             <button
-              class="opacity-0 group-hover/tab:opacity-100 transition-opacity ml-1 hover:scale-110"
+              class="ml-1 opacity-0 transition-all duration-200 group-hover/tab:opacity-100 hover:scale-110"
               :title="`Delete ${category}`"
               @click="handleDeleteCategory($event, category)"
             >
@@ -57,20 +58,9 @@ const handleDeleteCategory = (event: Event, category: string): void => {
         </button>
       </div>
 
-      <div class="flex gap-2 flex-shrink-0">
+      <div class="flex shrink-0 flex-wrap gap-2 sm:flex-nowrap">
         <button
-          v-if="activeCategory && categories.length > 0"
-          class="px-3 py-2 rounded-lg flex items-center gap-2 transition-all border text-sm whitespace-nowrap quick-add-btn"
-          :style="getCategoryStyles(activeCategory, true)"
-          :title="`Add to ${activeCategory}`"
-          @click="emit('create-in-category', activeCategory)"
-        >
-          <font-awesome-icon icon="plus" class="w-4 h-4" />
-          <span>Add Sheet</span>
-        </button>
-
-        <button
-          class="px-3 py-2 rounded-lg flex items-center gap-2 transition-all border text-sm bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] whitespace-nowrap"
+          class="px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 border text-sm bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] whitespace-nowrap"
           title="Create new category"
           @click="emit('create-category')"
         >
@@ -90,10 +80,6 @@ div::-webkit-scrollbar {
 
 .category-tab:hover {
   filter: brightness(1.15);
-}
-
-.quick-add-btn:hover {
-  filter: brightness(1.2);
 }
 
 button:hover {

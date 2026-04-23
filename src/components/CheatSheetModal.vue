@@ -16,35 +16,21 @@ const emit = defineEmits<{
 
 const form = ref<CheatSheetFormData>({
   title: '',
-  description: '',
   category: '',
   content: '',
 })
 
 const errors = ref<Partial<Record<keyof CheatSheetFormData, string>>>({})
-const isEditing = ref<boolean>(false)
 
 watch(
   () => props.isOpen,
   (isOpen: boolean): void => {
     if (isOpen) {
       errors.value = {}
-      if (props.cheatSheet) {
-        form.value = {
-          title: props.cheatSheet.title,
-          description: props.cheatSheet.description,
-          category: props.cheatSheet.category,
-          content: props.cheatSheet.content,
-        }
-        isEditing.value = true
-      } else {
-        form.value = {
-          title: '',
-          description: '',
-          category: props.initialCategory || '',
-          content: '',
-        }
-        isEditing.value = false
+      form.value = {
+        title: '',
+        category: props.initialCategory || '',
+        content: '',
       }
     }
   },
@@ -59,10 +45,6 @@ const validateForm = (): boolean => {
     errors.value.title = 'Title must be at least 3 characters'
   } else if (form.value.title.trim().length > 100) {
     errors.value.title = 'Title must be less than 100 characters'
-  }
-
-  if (form.value.description.trim().length > 200) {
-    errors.value.description = 'Description must be less than 200 characters'
   }
 
   if (!form.value.category.trim()) {
@@ -83,7 +65,6 @@ const handleSave = (): void => {
 
   const data: CheatSheetFormData = {
     title: form.value.title.trim(),
-    description: form.value.description.trim(),
     category: form.value.category.trim(),
     content: form.value.content.trim(),
   }
@@ -111,10 +92,10 @@ const handleClose = (): void => {
         >
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-[var(--color-text-primary)]">
-              {{ isEditing ? 'Edit Cheat Sheet' : 'Create Cheat Sheet' }}
+              Create cheat sheet
             </h2>
             <button
-              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors duration-200"
               @click="handleClose"
             >
               <font-awesome-icon icon="times" class="w-6 h-6" />
@@ -130,7 +111,7 @@ const handleClose = (): void => {
                 <input
                   v-model="form.title"
                   type="text"
-                  class="w-full rounded px-2 py-1.5 text-sm bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors"
+                  class="w-full rounded px-2 py-1.5 text-sm bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors duration-200"
                   :class="errors.title ? 'border-red-500' : 'border-[var(--color-border)]'"
                   placeholder="Title"
                   @input="errors.title = ''"
@@ -153,7 +134,7 @@ const handleClose = (): void => {
                 <select
                   v-else
                   v-model="form.category"
-                  class="w-full rounded px-2 py-1.5 text-sm bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] transition-colors"
+                  class="w-full rounded px-2 py-1.5 text-sm bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] transition-colors duration-200"
                   :class="errors.category ? 'border-red-500' : 'border-[var(--color-border)]'"
                   @change="errors.category = ''"
                 >
@@ -174,30 +155,13 @@ const handleClose = (): void => {
               </div>
             </div>
 
-            <div class="flex-shrink-0">
-              <label class="block text-xs font-medium mb-1 text-[var(--color-text-primary)]">
-                Description
-              </label>
-              <input
-                v-model="form.description"
-                type="text"
-                class="w-full rounded px-2 py-1.5 text-sm bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors"
-                :class="errors.description ? 'border-red-500' : 'border-[var(--color-border)]'"
-                placeholder="Brief description (optional)"
-                @input="errors.description = ''"
-              />
-              <p v-if="errors.description" class="text-red-500 text-xs mt-0.5">
-                {{ errors.description }}
-              </p>
-            </div>
-
             <div class="flex-1 flex flex-col min-h-0">
               <label class="block text-xs font-medium mb-1 text-[var(--color-text-primary)]">
                 Content <span class="text-red-500">*</span>
               </label>
               <textarea
                 v-model="form.content"
-                class="flex-1 w-full rounded px-3 py-2 bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors resize-none font-mono text-sm"
+                class="flex-1 w-full rounded px-3 py-2 bg-[var(--color-bg-primary)] border text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] transition-colors duration-200 resize-none font-mono text-sm"
                 :class="errors.content ? 'border-red-500' : 'border-[var(--color-border)]'"
                 placeholder="Enter cheat sheet content..."
                 @input="errors.content = ''"
@@ -217,7 +181,7 @@ const handleClose = (): void => {
                 type="submit"
                 variant="primary"
               >
-                {{ isEditing ? 'Save' : 'Create' }}
+                Create
               </AppButton>
             </div>
           </form>

@@ -13,6 +13,11 @@ export interface CategoryTabsProps {
   categoryCounts: Record<string, number>
 }
 
+// AddCheatSheetCard (grid placeholder, same cell size as a sheet card)
+export interface AddCheatSheetCardProps {
+  activeCategory?: string | null
+}
+
 // ConfirmDialog Props
 export interface ConfirmDialogProps {
   isOpen: boolean
@@ -23,37 +28,51 @@ export interface ConfirmDialogProps {
   isDanger?: boolean
 }
 
-// CheatSheetViewModal Props
-export interface CheatSheetViewModalProps {
-  isOpen: boolean
-  cheatSheet: CheatSheet | null
-}
-
 // CategoryDialog Props
 export interface CategoryDialogProps {
   isOpen: boolean
   existingCategories: string[]
 }
 
-// CheatSheetModal Props
+// CheatSheetModal Props (create only; existing sheets are edited in-place on the card)
 export interface CheatSheetModalProps {
   isOpen: boolean
-  cheatSheet?: CheatSheet | null
   initialCategory?: string
 }
 
 // CheatSheetModal Save Data
 export interface CheatSheetFormData {
   title: string
-  description: string
   category: string
   content: string
+}
+
+export interface CheatSheetCardLayout {
+  colSpan: number
+  rowSpan: number
+}
+
+export interface CheatSheetCardResizeConfig {
+  columnCount: number
+  columnWidth: number
+  rowHeight: number
+  gap: number
+  minColSpan: number
+  maxColSpan: number
+  minRowSpan: number
+  maxRowSpan: number
+}
+
+export interface CheatSheetCardResizeEvent {
+  id: string
+  layout: CheatSheetCardLayout
 }
 
 // CheatSheetCard Props
 export interface CheatSheetCardProps {
   cheatSheet: CheatSheet
-  totalCount: number
+  layout: CheatSheetCardLayout
+  resizeConfig: CheatSheetCardResizeConfig
 }
 
 // CodeHighlight Props
@@ -77,4 +96,3 @@ export interface CategoryColor {
   borderHover: string
   text: string
 }
-

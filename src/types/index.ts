@@ -5,7 +5,6 @@
 export interface CheatSheet {
   id: string
   title: string
-  description: string
   category: string
   content: string
   createdAt: string

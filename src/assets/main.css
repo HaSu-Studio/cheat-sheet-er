@@ -8,6 +8,17 @@
   --color-text-secondary: #a0a0a0;
   --color-border: #44444e;
   --color-border-hover: #715a5a;
+
+  /* Карточка: зона редактирования текста (фон + полоска из палитры выше) */
+  --color-card-edit-surface: #3c3a44;
+  --color-card-edit-border: var(--color-border-hover);
+  --color-card-edit-stripe: var(--color-bg-accent);
+
+}
+
+.cheat-sheet-grid {
+  grid-auto-flow: row dense;
+  align-items: stretch;
 }
 
 body {
