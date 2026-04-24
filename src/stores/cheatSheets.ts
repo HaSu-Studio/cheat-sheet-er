@@ -15,9 +15,9 @@ type CheatSheetOrder = string[]
 const CARD_LAYOUT_STORAGE_KEY = 'cheat-sheet-card-layout-v2'
 const CARD_ORDER_STORAGE_KEY = 'cheat-sheet-order-v1'
 const CARD_LAYOUT_LIMITS = {
-  minColSpan: 2,
+  minColSpan: 8,
   maxColSpan: 96,
-  minRowSpan: 4,
+  minRowSpan: 8,
   maxRowSpan: 120,
 } as const
 
@@ -254,8 +254,8 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
   const addCheatSheet = async (input: CheatSheetInput): Promise<CheatSheet> => {
     try {
       const newSheet: CheatSheet = await api.createCheatSheet(input)
-      cheatSheets.value.unshift(newSheet)
-      cheatSheetOrder.value = [newSheet.id, ...cheatSheetOrder.value.filter((id) => id !== newSheet.id)]
+      cheatSheets.value.push(newSheet)
+      cheatSheetOrder.value = [...cheatSheetOrder.value.filter((id) => id !== newSheet.id), newSheet.id]
       persistCheatSheetOrder()
       applyCheatSheetOrder()
       syncCardLayouts()

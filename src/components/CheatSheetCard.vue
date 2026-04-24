@@ -373,7 +373,7 @@ onUnmounted(() => {
 <template>
   <div
     :class="[
-      'cheat-sheet-card relative group flex h-full w-full min-h-0 flex-col overflow-hidden rounded-lg border bg-[var(--color-bg-secondary)] p-3 transition-colors duration-200 sm:p-4',
+      'cheat-sheet-card relative group flex h-full w-full min-h-0 flex-col overflow-hidden rounded-lg border bg-[var(--color-bg-secondary)] transition-colors duration-200',
       isEditing ? 'border-[var(--color-bg-accent)] ring-1 ring-[var(--color-bg-accent)]/30' : '',
       menuOpen ? 'z-40' : 'z-0',
       isResizing ? 'cursor-se-resize select-none' : '',
@@ -381,34 +381,70 @@ onUnmounted(() => {
     :style="cardStyle"
   >
     <div
-      class="cheat-sheet-card__meta flex min-h-0 shrink-0 items-center gap-2 border-b border-[var(--color-border)]/50 pb-2"
+      class="cheat-sheet-card__meta cheat-sheet-card__toolbar flex min-h-0 shrink-0 items-center rounded-md border border-[var(--color-border)]/70 bg-[var(--color-bg-primary)]/35"
     >
       <input
         v-if="isEditing"
         v-model="editForm.title"
         type="text"
         placeholder="Title"
-        class="cheat-sheet-card__title-input min-w-0 flex-1 border-0 border-b border-dashed border-[var(--color-border)] bg-transparent py-0.5 text-sm font-medium leading-none text-[var(--color-text-primary)] outline-none ring-0 placeholder:text-[var(--color-text-primary)]/40 focus:border-[var(--color-bg-accent)] sm:text-base"
+        class="cheat-sheet-card__title-input min-w-0 flex-1 border-0 border-b border-dashed border-[var(--color-border)] bg-transparent py-0.5 font-medium leading-tight text-[var(--color-text-primary)] outline-none ring-0 placeholder:text-[var(--color-text-primary)]/40 focus:border-[var(--color-bg-accent)]"
         :style="titleStyle"
       />
       <h3
         v-else
-        class="min-w-0 flex-1 cursor-text select-text truncate text-sm font-medium leading-none text-[var(--color-text-primary)] transition-colors duration-200 sm:text-base"
+        class="cheat-sheet-card__title min-w-0 flex-1 cursor-text select-text truncate font-medium leading-tight text-[var(--color-text-primary)] transition-colors duration-200"
         :style="titleStyle"
         title="Double-click to edit"
         @dblclick="startEdit"
       >
         {{ cheatSheet.title }}
       </h3>
+    </div>
 
+    <div
+      class="cheat-sheet-card__code flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)]"
+      :class="isEditing ? '' : 'cursor-text'"
+      :title="isEditing ? 'Save: ⌘ or Ctrl+Enter · Cancel: Esc' : 'Double-click to edit · Select text to copy'"
+      @dblclick="onCodeAreaDblClick"
+    >
+      <textarea
+        v-if="isEditing"
+        ref="contentInputRef"
+        v-model="editForm.content"
+        placeholder="Content"
+        class="cheat-sheet-card__content-input min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent font-mono leading-relaxed text-[var(--color-text-primary)] outline-none ring-0 placeholder:text-[var(--color-text-primary)]/35"
+        title="Save: ⌘ or Ctrl+Enter — Cancel: Esc"
+        spellcheck="false"
+        @click.stop
+        @keydown="onContentKeydown"
+      />
+      <div
+        v-else
+        class="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <div
+          class="cheat-sheet-card__scroll-inner min-h-0 flex-1 overflow-y-auto select-text"
+        >
+          <CodeHighlight :code="cheatSheet.content" />
+        </div>
+        <div
+          class="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-[var(--color-bg-primary)] to-transparent"
+          aria-hidden="true"
+        />
+      </div>
+    </div>
+
+    <!-- Bottom footer: date, category, actions -->
+    <div class="cheat-sheet-card__footer flex shrink-0 items-center gap-1.5" style="margin-block: 0; padding-block: 0;">
       <span
-        class="shrink-0 whitespace-nowrap text-[0.65rem] tabular-nums leading-none text-[var(--color-text-primary)] opacity-70 sm:text-xs"
+        class="cheat-sheet-card__meta-date shrink-0 whitespace-nowrap tabular-nums leading-none text-[var(--color-text-primary)] opacity-50"
       >{{ formatDate(cheatSheet.updatedAt) }}</span>
 
       <select
         v-if="isEditing"
         v-model="editForm.category"
-        class="category-select category-tag max-w-[32%] min-w-[5.5rem] shrink-0 cursor-pointer truncate rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] py-0.5 pl-1 pr-5 text-left text-[0.65rem] font-medium text-[var(--color-text-primary)] outline-none ring-0 focus:border-[var(--color-bg-accent)] sm:text-xs"
+        class="category-select cheat-sheet-card__category-control category-tag max-w-[40%] min-w-[5.5rem] shrink-0 cursor-pointer truncate rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] py-0.5 pl-1 pr-5 text-left font-medium text-[var(--color-text-primary)] outline-none ring-0 focus:border-[var(--color-bg-accent)]"
         :style="effectiveCategory ? getCategoryStyles(effectiveCategory) : {}"
         :disabled="categorySelectOptions.length === 0"
       >
@@ -423,140 +459,102 @@ onUnmounted(() => {
       </select>
       <span
         v-else-if="cheatSheet.category"
-        class="category-tag max-w-[32%] min-w-0 shrink-0 truncate rounded border px-1.5 py-0.5 text-[0.65rem] font-medium leading-none transition-all duration-200 sm:text-xs"
+        class="category-tag cheat-sheet-card__category-pill max-w-[40%] min-w-0 shrink-0 truncate rounded border px-1.5 py-0.5 font-medium leading-none transition-all duration-200"
         :style="getCategoryStyles(cheatSheet.category)"
       >
         {{ cheatSheet.category }}
       </span>
 
-      <div
-        v-if="!isEditing"
-        class="ml-auto flex shrink-0 items-center gap-1"
-      >
-        <button
-          type="button"
-          class="rounded p-1 text-[var(--color-text-primary)] opacity-80 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label="Move card up"
-          title="Move up"
-          :disabled="!canMovePrev"
-          @click.stop="movePrev"
-        >
-          <font-awesome-icon icon="arrow-up" class="h-3 w-3" />
-        </button>
-        <button
-          type="button"
-          class="rounded p-1 text-[var(--color-text-primary)] opacity-80 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label="Move card down"
-          title="Move down"
-          :disabled="!canMoveNext"
-          @click.stop="moveNext"
-        >
-          <font-awesome-icon icon="arrow-down" class="h-3 w-3" />
-        </button>
-      </div>
+      <div class="ml-auto flex shrink-0 items-center gap-0.5">
+        <template v-if="!isEditing">
+          <button
+            type="button"
+            class="rounded px-0.5 py-0 text-[var(--color-text-primary)] opacity-80 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label="Move card up"
+            title="Move up"
+            :disabled="!canMovePrev"
+            @click.stop="movePrev"
+          >
+            <font-awesome-icon icon="arrow-up" class="h-1.5 w-1.5" />
+          </button>
+          <button
+            type="button"
+            class="rounded px-0.5 py-0 text-[var(--color-text-primary)] opacity-80 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label="Move card down"
+            title="Move down"
+            :disabled="!canMoveNext"
+            @click.stop="moveNext"
+          >
+            <font-awesome-icon icon="arrow-down" class="h-1.5 w-1.5" />
+          </button>
 
-      <div
-        v-if="!isEditing"
-        ref="menuRootRef"
-        class="relative z-[1] shrink-0"
-      >
-        <button
-          type="button"
-          class="rounded p-1.5 text-[var(--color-text-primary)] opacity-100 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-          aria-label="Open menu"
-          :aria-expanded="menuOpen"
-          @click.stop="menuOpen = !menuOpen"
-        >
-          <font-awesome-icon icon="ellipsis-vertical" class="h-4 w-4" />
-        </button>
-        <div
-          v-show="menuOpen"
-          class="absolute right-0 top-full z-50 mt-1 min-w-[10.5rem] overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] py-1 shadow-xl"
-          role="menu"
-          @click.stop
-        >
+          <div
+            ref="menuRootRef"
+            class="relative z-[1] shrink-0"
+          >
+            <button
+              type="button"
+              class="rounded px-0.5 py-0 text-[var(--color-text-primary)] opacity-100 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+              aria-label="Open menu"
+              :aria-expanded="menuOpen"
+              @click.stop="menuOpen = !menuOpen"
+            >
+              <font-awesome-icon icon="ellipsis-vertical" class="h-2 w-2" />
+            </button>
+            <div
+              v-show="menuOpen"
+              class="absolute right-0 bottom-full z-50 mb-1 min-w-[10.5rem] overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] py-1 shadow-xl"
+              role="menu"
+              @click.stop
+            >
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors duration-200 hover:bg-[var(--color-bg-secondary)]"
+                role="menuitem"
+                @click="copyContent"
+              >
+                <font-awesome-icon icon="copy" class="h-3.5 w-3.5 opacity-80" />
+                Copy
+              </button>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors duration-200 hover:bg-[var(--color-bg-secondary)]"
+                role="menuitem"
+                @click="onMenuEdit"
+              >
+                <font-awesome-icon icon="pen" class="h-3.5 w-3.5 opacity-80" />
+                Edit
+              </button>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-400 transition-colors duration-200 hover:bg-[var(--color-bg-secondary)]"
+                role="menuitem"
+                @click="onMenuDelete"
+              >
+                <font-awesome-icon icon="trash" class="h-3.5 w-3.5 opacity-80" />
+                Delete
+              </button>
+            </div>
+          </div>
+        </template>
+        <template v-else>
           <button
             type="button"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors duration-200 hover:bg-[var(--color-bg-secondary)]"
-            role="menuitem"
-            @click="copyContent"
+            class="px-0.5 py-0 text-[var(--color-text-primary)] transition-opacity duration-200 hover:opacity-70"
+            aria-label="Cancel edit"
+            @click="cancelEdit"
           >
-            <font-awesome-icon icon="copy" class="h-3.5 w-3.5 opacity-80" />
-            Copy
+            <font-awesome-icon icon="times" class="h-1.5 w-1.5" />
           </button>
           <button
             type="button"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors duration-200 hover:bg-[var(--color-bg-secondary)]"
-            role="menuitem"
-            @click="onMenuEdit"
+            class="px-0.5 py-0 text-emerald-500 transition-opacity duration-200 hover:opacity-80"
+            aria-label="Save"
+            @click="saveEdit"
           >
-            <font-awesome-icon icon="pen" class="h-3.5 w-3.5 opacity-80" />
-            Edit
+            <font-awesome-icon icon="check" class="h-1.5 w-1.5" />
           </button>
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-400 transition-colors duration-200 hover:bg-[var(--color-bg-secondary)]"
-            role="menuitem"
-            @click="onMenuDelete"
-          >
-            <font-awesome-icon icon="trash" class="h-3.5 w-3.5 opacity-80" />
-            Delete
-          </button>
-        </div>
-      </div>
-      <div
-        v-else
-        class="ml-auto flex shrink-0 gap-1"
-      >
-        <button
-          type="button"
-          class="p-0.5 text-[var(--color-text-primary)] transition-opacity duration-200 hover:opacity-70"
-          aria-label="Cancel edit"
-          @click="cancelEdit"
-        >
-          <font-awesome-icon icon="times" class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-        </button>
-        <button
-          type="button"
-          class="p-0.5 text-emerald-500 transition-opacity duration-200 hover:opacity-80"
-          aria-label="Save"
-          @click="saveEdit"
-        >
-          <font-awesome-icon icon="check" class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-        </button>
-      </div>
-    </div>
-
-    <div
-      class="cheat-sheet-card__code flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-xs"
-      :class="isEditing ? '' : 'cursor-text'"
-      :title="isEditing ? 'Save: ⌘ or Ctrl+Enter · Cancel: Esc' : 'Double-click to edit · Select text to copy'"
-      @dblclick="onCodeAreaDblClick"
-    >
-      <textarea
-        v-if="isEditing"
-        ref="contentInputRef"
-        v-model="editForm.content"
-        placeholder="Content"
-        class="cheat-sheet-card__content-input min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-2.5 font-mono text-xs leading-relaxed text-[var(--color-text-primary)] outline-none ring-0 placeholder:text-[var(--color-text-primary)]/35 sm:p-3"
-        title="Save: ⌘ or Ctrl+Enter — Cancel: Esc"
-        spellcheck="false"
-        @click.stop
-        @keydown="onContentKeydown"
-      />
-      <div
-        v-else
-        class="relative flex min-h-0 flex-1 flex-col overflow-hidden"
-      >
-        <div
-          class="min-h-0 flex-1 overflow-y-auto p-2.5 select-text sm:p-3"
-        >
-          <CodeHighlight :code="cheatSheet.content" />
-        </div>
-        <div
-          class="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-[var(--color-bg-primary)] to-transparent"
-          aria-hidden="true"
-        />
+        </template>
       </div>
     </div>
 
@@ -586,6 +584,60 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Карточка как контейнер: типографика и отступы от ширины и высоты ячейки (ресайз грида) */
+.cheat-sheet-card {
+  container-type: size;
+  container-name: cheat-sheet-card;
+  padding: clamp(0.35rem, 0.3rem + 1.1cqmin, 0.9rem);
+  gap: clamp(0.3rem, 0.2rem + 0.9cqmin, 0.75rem);
+}
+
+.cheat-sheet-card__toolbar {
+  gap: clamp(0.2rem, 0.15rem + 0.8cqmin, 0.5rem);
+  padding-inline: clamp(0.3rem, 0.25rem + 1.5cqi, 0.65rem);
+  padding-block: clamp(0.15rem, 0.1rem + 0.55cqmin, 0.45rem);
+}
+
+.cheat-sheet-card__title,
+.cheat-sheet-card__title-input {
+  font-size: clamp(13px, 0.32rem + 2.1cqmin, 1rem);
+  padding-inline: clamp(0.3rem, 0.25rem + 1.5cqi, 0.75rem);
+  padding-block: clamp(0.25rem, 0.2rem + 0.9cqmin, 0.55rem);
+}
+
+.cheat-sheet-card__footer {
+  gap: clamp(0.2rem, 0.15rem + 0.8cqmin, 0.5rem);
+  /* right padding to keep buttons away from the absolute resize handle (w-5 + right-1.5 ≈ 1.65rem) */
+  padding-right: 1.75rem;
+  padding-block: 0;
+}
+
+.cheat-sheet-card__meta-date {
+  font-size: clamp(10px, 0.15rem + 1.1cqmin, 0.72rem);
+}
+
+.cheat-sheet-card__category-pill,
+.cheat-sheet-card__category-control {
+  font-size: clamp(13px, 0.18rem + 1.35cqmin, 0.875rem);
+}
+
+.cheat-sheet-card__code {
+  font-size: clamp(13px, 0.22rem + 1.65cqmin, 0.9375rem);
+  line-height: 1.45;
+}
+
+.cheat-sheet-card__scroll-inner,
+.cheat-sheet-card__content-input {
+  padding-inline: clamp(0.3rem, 0.2rem + 1.1cqmin, 0.75rem);
+  padding-top: clamp(0.3rem, 0.2rem + 1.1cqmin, 0.75rem);
+  padding-bottom: 0;
+}
+
+.cheat-sheet-card__scroll-inner :deep(pre),
+.cheat-sheet-card__scroll-inner :deep(code) {
+  font-size: inherit;
+}
+
 .category-tag {
   opacity: 1 !important;
 }
