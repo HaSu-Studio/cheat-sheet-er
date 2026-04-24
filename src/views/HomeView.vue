@@ -11,6 +11,8 @@ import CheatSheetModal from '@/components/CheatSheetModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import CategoryDialog from '@/components/CategoryDialog.vue'
 import { useCheatSheetsStore } from '@/stores/cheatSheets'
+import { AppButton } from '@/components/shared'
+import { estimateCardLayoutForContent } from '@/utils/cardLayout'
 import type {
   CheatSheetCardLayout,
   CheatSheetCardResizeConfig,
@@ -67,17 +69,29 @@ const targetColumnWidthPx = computed(() => {
   return 320
 })
 
-const gridColumnCount = computed(() => {
+const horizontalSubdivision = computed(() => {
+  if (viewportWidth.value < 640) return 4
+  if (viewportWidth.value < 1100) return 6
+  return 8
+})
+
+const baseGridColumnCount = computed(() => {
   const width = gridWidth.value
   if (width <= 0) return 1
   const rawCount = Math.floor((width + gridGapPx.value) / (targetColumnWidthPx.value + gridGapPx.value))
   return Math.max(1, rawCount)
 })
 
+const gridColumnCount = computed(() => {
+  return baseGridColumnCount.value * horizontalSubdivision.value
+})
+
 const gridColumnWidthPx = computed(() => {
   const width = gridWidth.value
   const columns = gridColumnCount.value
-  if (width <= 0) return targetColumnWidthPx.value
+  if (width <= 0) {
+    return Math.max(1, Math.floor(targetColumnWidthPx.value / horizontalSubdivision.value))
+  }
   return Math.floor((width - (columns - 1) * gridGapPx.value) / columns)
 })
 
@@ -98,6 +112,14 @@ const defaultRowSpan = computed(() => {
     (defaultCardHeightPx.value + gridGapPx.value) / (gridRowHeightPx.value + gridGapPx.value),
   )
   return clamp(raw, store.cardLayoutLimits.minRowSpan, store.cardLayoutLimits.maxRowSpan)
+})
+
+const defaultColSpan = computed(() => {
+  return clamp(
+    horizontalSubdivision.value,
+    store.cardLayoutLimits.minColSpan,
+    Math.min(store.cardLayoutLimits.maxColSpan, gridColumnCount.value),
+  )
 })
 
 const resizeConfig = computed<CheatSheetCardResizeConfig>(() => {
@@ -129,7 +151,7 @@ const gridStyle = computed<Record<string, string>>(() => {
 
 const addCardStyle = computed<Record<string, string>>(() => {
   return {
-    gridColumn: 'span 1 / span 1',
+    gridColumn: `span ${defaultColSpan.value} / span ${defaultColSpan.value}`,
     gridRow: `span ${defaultRowSpan.value} / span ${defaultRowSpan.value}`,
   }
 })
@@ -138,7 +160,7 @@ const resolveCardLayout = (id: string): CheatSheetCardLayout => {
   const savedLayout = cardLayouts.value[id]
   const { minColSpan, maxColSpan, minRowSpan, maxRowSpan } = resizeConfig.value
   return {
-    colSpan: clamp(savedLayout?.colSpan ?? 1, minColSpan, maxColSpan),
+    colSpan: clamp(savedLayout?.colSpan ?? defaultColSpan.value, minColSpan, maxColSpan),
     rowSpan: clamp(savedLayout?.rowSpan ?? defaultRowSpan.value, minRowSpan, maxRowSpan),
   }
 }
@@ -170,6 +192,54 @@ const detachGridObserver = (): void => {
 
 const handleCardResize = (event: CheatSheetCardResizeEvent): void => {
   store.setCardLayout(event.id, event.layout)
+}
+
+const filteredIds = computed(() => filteredCheatSheets.value.map((sheet) => sheet.id))
+
+const filteredIndexMap = computed<Record<string, number>>(() => {
+  const map: Record<string, number> = {}
+  filteredIds.value.forEach((id, index) => {
+    map[id] = index
+  })
+  return map
+})
+
+const canMovePrev = (id: string): boolean => {
+  const index = filteredIndexMap.value[id]
+  return typeof index === 'number' && index > 0
+}
+
+const canMoveNext = (id: string): boolean => {
+  const index = filteredIndexMap.value[id]
+  return typeof index === 'number' && index < filteredIds.value.length - 1
+}
+
+const handleMovePrev = (id: string): void => {
+  store.moveCheatSheet(id, 'prev', filteredIds.value)
+}
+
+const handleMoveNext = (id: string): void => {
+  store.moveCheatSheet(id, 'next', filteredIds.value)
+}
+
+const handleAutoArrange = (): void => {
+  if (!filteredCheatSheets.value.length) return
+
+  const layouts: Record<string, CheatSheetCardLayout> = {}
+  filteredCheatSheets.value.forEach((sheet) => {
+    layouts[sheet.id] = estimateCardLayoutForContent(
+      sheet.content,
+      defaultColSpan.value,
+      resizeConfig.value,
+    )
+  })
+
+  const updated = store.setCardLayouts(layouts)
+  if (updated > 0) {
+    toast.success(`Auto-arranged ${updated} card${updated > 1 ? 's' : ''}`)
+  } else {
+    toast.info('Cards are already optimally arranged')
+  }
 }
 
 const handleSearch = (query: string): void => {
@@ -365,13 +435,22 @@ onUnmounted(() => {
     class="dashboard mx-auto w-full max-w-[90vw] px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
   >
     <div class="dashboard__stack flex flex-col gap-8">
-      <header class="dashboard__toolbar shrink-0">
+      <header class="dashboard__toolbar flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="sr-only">Search</h2>
         <SearchBar
           class="w-full min-w-0 max-w-xl"
           :model-value="searchQuery"
           @update:model-value="handleSearch"
         />
+        <AppButton
+          variant="secondary"
+          size="sm"
+          icon="sliders"
+          :disabled="filteredCheatSheets.length === 0"
+          @click="handleAutoArrange"
+        >
+          Auto Arrange
+        </AppButton>
       </header>
 
       <section class="dashboard__filters shrink-0" aria-label="Categories">
@@ -412,8 +491,12 @@ onUnmounted(() => {
             :cheat-sheet="cheatSheet"
             :layout="resolveCardLayout(cheatSheet.id)"
             :resize-config="resizeConfig"
+            :can-move-prev="canMovePrev(cheatSheet.id)"
+            :can-move-next="canMoveNext(cheatSheet.id)"
             @delete="handleDeleteRequest"
             @resize="handleCardResize"
+            @move-prev="handleMovePrev"
+            @move-next="handleMoveNext"
           />
           <AddCheatSheetCard
             :active-category="activeCategory"

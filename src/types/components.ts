@@ -73,6 +73,8 @@ export interface CheatSheetCardProps {
   cheatSheet: CheatSheet
   layout: CheatSheetCardLayout
   resizeConfig: CheatSheetCardResizeConfig
+  canMovePrev?: boolean
+  canMoveNext?: boolean
 }
 
 // CodeHighlight Props

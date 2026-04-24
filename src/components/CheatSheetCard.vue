@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 import CodeHighlight from './CodeHighlight.vue'
 import { useCheatSheetsStore } from '@/stores/cheatSheets'
 import { useCategoryColors } from '@/composables/useCategoryColors'
+import { estimateCardRowSpan } from '@/utils/cardLayout'
 import type {
   CheatSheetCardLayout,
   CheatSheetCardProps,
@@ -27,6 +28,8 @@ const props = defineProps<CheatSheetCardProps>()
 const emit = defineEmits<{
   delete: [id: string]
   resize: [event: CheatSheetCardResizeEvent]
+  'move-prev': [id: string]
+  'move-next': [id: string]
 }>()
 
 const store = useCheatSheetsStore()
@@ -117,25 +120,51 @@ const cancelEdit = (): void => {
   isEditing.value = false
 }
 
-const saveEdit = (): void => {
-  if (!editForm.value.title.trim() || !editForm.value.content.trim()) {
+const saveEdit = async (): Promise<void> => {
+  const nextTitle = editForm.value.title.trim()
+  const nextCategory = editForm.value.category.trim()
+  const nextContent = editForm.value.content.trim()
+
+  if (!nextTitle || !nextContent) {
     toast.warning('Title and content are required')
     return
   }
 
-  if (!editForm.value.category.trim()) {
+  if (!nextCategory) {
     toast.warning('Choose a category')
     return
   }
 
-  store.updateCheatSheet(props.cheatSheet.id, {
-    title: editForm.value.title.trim(),
-    category: editForm.value.category.trim(),
-    content: editForm.value.content.trim(),
-  })
+  try {
+    await store.updateCheatSheet(props.cheatSheet.id, {
+      title: nextTitle,
+      category: nextCategory,
+      content: nextContent,
+    })
 
-  isEditing.value = false
-  toast.success('Cheat sheet updated!')
+    const recommendedRowSpan = estimateCardRowSpan(
+      nextContent,
+      localLayout.value.colSpan,
+      props.resizeConfig,
+    )
+
+    if (recommendedRowSpan < localLayout.value.rowSpan) {
+      localLayout.value = {
+        ...localLayout.value,
+        rowSpan: recommendedRowSpan,
+      }
+      emit('resize', {
+        id: props.cheatSheet.id,
+        layout: { ...localLayout.value },
+      })
+    }
+
+    isEditing.value = false
+    toast.success('Cheat sheet updated!')
+  } catch (error) {
+    console.error('Failed to update cheat sheet:', error)
+    toast.error('Failed to update cheat sheet')
+  }
 }
 
 const onContentKeydown = (e: KeyboardEvent): void => {
@@ -212,6 +241,25 @@ const cardStyle = computed<Record<string, string>>(() => {
 const titleStyle = computed(() => {
   if (!cardColors.value) return {}
   return { color: cardColors.value.text }
+})
+
+const canMovePrev = computed(() => props.canMovePrev !== false)
+const canMoveNext = computed(() => props.canMoveNext !== false)
+
+const movePrev = (): void => {
+  if (!canMovePrev.value || isEditing.value) return
+  emit('move-prev', props.cheatSheet.id)
+}
+
+const moveNext = (): void => {
+  if (!canMoveNext.value || isEditing.value) return
+  emit('move-next', props.cheatSheet.id)
+}
+
+const resizePreviewLabel = computed(() => {
+  const width = spanToPixels(localLayout.value.colSpan, props.resizeConfig.columnWidth, props.resizeConfig.gap)
+  const height = spanToPixels(localLayout.value.rowSpan, props.resizeConfig.rowHeight, props.resizeConfig.gap)
+  return `${Math.round(width)}×${Math.round(height)} · ${localLayout.value.colSpan}x${localLayout.value.rowSpan}`
 })
 
 const onCodeAreaDblClick = (e: MouseEvent): void => {
@@ -383,8 +431,34 @@ onUnmounted(() => {
 
       <div
         v-if="!isEditing"
+        class="ml-auto flex shrink-0 items-center gap-1"
+      >
+        <button
+          type="button"
+          class="rounded p-1 text-[var(--color-text-primary)] opacity-80 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-35"
+          aria-label="Move card up"
+          title="Move up"
+          :disabled="!canMovePrev"
+          @click.stop="movePrev"
+        >
+          <font-awesome-icon icon="arrow-up" class="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          class="rounded p-1 text-[var(--color-text-primary)] opacity-80 transition-opacity duration-200 hover:bg-[var(--color-bg-primary)] hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-35"
+          aria-label="Move card down"
+          title="Move down"
+          :disabled="!canMoveNext"
+          @click.stop="moveNext"
+        >
+          <font-awesome-icon icon="arrow-down" class="h-3 w-3" />
+        </button>
+      </div>
+
+      <div
+        v-if="!isEditing"
         ref="menuRootRef"
-        class="relative z-[1] ml-auto shrink-0"
+        class="relative z-[1] shrink-0"
       >
         <button
           type="button"
@@ -484,6 +558,20 @@ onUnmounted(() => {
           aria-hidden="true"
         />
       </div>
+    </div>
+
+    <div
+      v-if="isResizing"
+      class="pointer-events-none absolute inset-1 rounded-md border border-dashed border-[var(--color-bg-accent)]/80 bg-[var(--color-bg-accent)]/10"
+      aria-hidden="true"
+    />
+
+    <div
+      v-if="isResizing"
+      class="pointer-events-none absolute bottom-8 right-2 rounded bg-black/60 px-2 py-1 text-[10px] font-medium text-white"
+      aria-hidden="true"
+    >
+      {{ resizePreviewLabel }}
     </div>
 
     <button

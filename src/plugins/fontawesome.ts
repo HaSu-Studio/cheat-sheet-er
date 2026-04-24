@@ -12,6 +12,8 @@ import {
   faSignInAlt,
   faUserPlus,
   faArrowLeft,
+  faArrowUp,
+  faArrowDown,
   faCopy,
   faTimes,
   faTag,
@@ -48,6 +50,8 @@ library.add(
   faSignInAlt,
   faUserPlus,
   faArrowLeft,
+  faArrowUp,
+  faArrowDown,
   faCopy,
   faTimes,
   faTag,
@@ -73,4 +77,3 @@ library.add(
 )
 
 export { FontAwesomeIcon }
-

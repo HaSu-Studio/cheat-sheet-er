@@ -10,12 +10,14 @@ interface CardLayout {
 }
 
 type CardLayoutMap = Record<string, CardLayout>
+type CheatSheetOrder = string[]
 
-const CARD_LAYOUT_STORAGE_KEY = 'cheat-sheet-card-layout-v1'
+const CARD_LAYOUT_STORAGE_KEY = 'cheat-sheet-card-layout-v2'
+const CARD_ORDER_STORAGE_KEY = 'cheat-sheet-order-v1'
 const CARD_LAYOUT_LIMITS = {
-  minColSpan: 1,
-  maxColSpan: 4,
-  minRowSpan: 7,
+  minColSpan: 2,
+  maxColSpan: 96,
+  minRowSpan: 4,
   maxRowSpan: 120,
 } as const
 
@@ -55,17 +57,64 @@ const sanitizeCardLayouts = (value: unknown): CardLayoutMap => {
   return normalized
 }
 
+const sanitizeOrder = (value: unknown): CheatSheetOrder => {
+  if (!Array.isArray(value)) return []
+  const unique = new Set<string>()
+  value.forEach((id) => {
+    if (typeof id === 'string' && id.trim() && !unique.has(id)) {
+      unique.add(id)
+    }
+  })
+  return Array.from(unique)
+}
+
 export const useCheatSheetsStore = defineStore('cheatSheets', () => {
   const cheatSheets = ref<CheatSheet[]>([])
   const customCategories = ref<string[]>([])
   const searchQuery = ref<string>('')
   const activeCategory = ref<string | null>(null)
   const isLoading = ref<boolean>(false)
-  const storage = useLocalStorage<CardLayoutMap>(CARD_LAYOUT_STORAGE_KEY, {})
-  const cardLayouts = ref<CardLayoutMap>(sanitizeCardLayouts(storage.getItem()))
+  const layoutStorage = useLocalStorage<CardLayoutMap>(CARD_LAYOUT_STORAGE_KEY, {})
+  const orderStorage = useLocalStorage<CheatSheetOrder>(CARD_ORDER_STORAGE_KEY, [])
+  const cardLayouts = ref<CardLayoutMap>(sanitizeCardLayouts(layoutStorage.getItem()))
+  const cheatSheetOrder = ref<CheatSheetOrder>(sanitizeOrder(orderStorage.getItem()))
 
   const persistCardLayouts = (): void => {
-    storage.setItem(cardLayouts.value)
+    layoutStorage.setItem(cardLayouts.value)
+  }
+
+  const persistCheatSheetOrder = (): void => {
+    orderStorage.setItem(cheatSheetOrder.value)
+  }
+
+  const applyCheatSheetOrder = (): void => {
+    if (cheatSheets.value.length <= 1) return
+    const orderMap: Map<string, number> = new Map(
+      cheatSheetOrder.value.map((id, index) => [id, index]),
+    )
+    cheatSheets.value = [...cheatSheets.value].sort((a, b) => {
+      const aPos = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
+      const bPos = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
+      return aPos - bPos
+    })
+  }
+
+  const syncCheatSheetOrder = (): void => {
+    const validIds: string[] = cheatSheets.value.map((sheet) => sheet.id)
+    const validSet: Set<string> = new Set(validIds)
+    const existingValid = cheatSheetOrder.value.filter((id) => validSet.has(id))
+    const missing = validIds.filter((id) => !existingValid.includes(id))
+    const nextOrder = [...existingValid, ...missing]
+    const hasChanged =
+      nextOrder.length !== cheatSheetOrder.value.length ||
+      nextOrder.some((id, index) => id !== cheatSheetOrder.value[index])
+
+    if (hasChanged) {
+      cheatSheetOrder.value = nextOrder
+      persistCheatSheetOrder()
+    }
+
+    applyCheatSheetOrder()
   }
 
   const syncCardLayouts = (): void => {
@@ -139,6 +188,7 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     try {
       const sheets: CheatSheet[] = await api.getCheatSheets()
       cheatSheets.value = sheets
+      syncCheatSheetOrder()
       syncCardLayouts()
     } catch (error) {
       console.error('Failed to fetch cheat sheets:', error)
@@ -205,6 +255,9 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     try {
       const newSheet: CheatSheet = await api.createCheatSheet(input)
       cheatSheets.value.unshift(newSheet)
+      cheatSheetOrder.value = [newSheet.id, ...cheatSheetOrder.value.filter((id) => id !== newSheet.id)]
+      persistCheatSheetOrder()
+      applyCheatSheetOrder()
       syncCardLayouts()
       return newSheet
     } catch (error) {
@@ -233,6 +286,10 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
       if (index !== -1) {
         cheatSheets.value.splice(index, 1)
       }
+      if (cheatSheetOrder.value.includes(id)) {
+        cheatSheetOrder.value = cheatSheetOrder.value.filter((itemId) => itemId !== id)
+        persistCheatSheetOrder()
+      }
       if (cardLayouts.value[id]) {
         const nextLayouts: CardLayoutMap = { ...cardLayouts.value }
         delete nextLayouts[id]
@@ -255,12 +312,87 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     persistCardLayouts()
   }
 
+  const setCardLayouts = (layouts: CardLayoutMap): number => {
+    const nextLayouts: CardLayoutMap = { ...cardLayouts.value }
+    let changes = 0
+
+    Object.entries(layouts).forEach(([id, layout]) => {
+      const sanitized = sanitizeCardLayout(layout)
+      if (!sanitized) return
+      const current = nextLayouts[id]
+      if (
+        !current ||
+        current.colSpan !== sanitized.colSpan ||
+        current.rowSpan !== sanitized.rowSpan
+      ) {
+        nextLayouts[id] = sanitized
+        changes += 1
+      }
+    })
+
+    if (changes > 0) {
+      cardLayouts.value = nextLayouts
+      persistCardLayouts()
+    }
+
+    return changes
+  }
+
   const clearCardLayout = (id: string): void => {
     if (!cardLayouts.value[id]) return
     const nextLayouts: CardLayoutMap = { ...cardLayouts.value }
     delete nextLayouts[id]
     cardLayouts.value = nextLayouts
     persistCardLayouts()
+  }
+
+  const moveCheatSheet = (id: string, direction: 'prev' | 'next', scopeIds?: string[]): boolean => {
+    const offset = direction === 'prev' ? -1 : 1
+    if (!cheatSheetOrder.value.length) return false
+
+    const order = [...cheatSheetOrder.value]
+    const hasScope = Array.isArray(scopeIds) && scopeIds.length > 1
+    if (!hasScope) {
+      const index = order.indexOf(id)
+      if (index === -1) return false
+      const targetIndex = index + offset
+      if (targetIndex < 0 || targetIndex >= order.length) return false
+      const currentId = order[index]
+      const targetId = order[targetIndex]
+      if (!currentId || !targetId) return false
+      order[index] = targetId
+      order[targetIndex] = currentId
+      cheatSheetOrder.value = order
+      persistCheatSheetOrder()
+      applyCheatSheetOrder()
+      return true
+    }
+
+    const scopeSet = new Set(scopeIds)
+    const scopedOrder = order.filter((itemId) => scopeSet.has(itemId))
+    const scopedIndex = scopedOrder.indexOf(id)
+    if (scopedIndex === -1) return false
+    const targetScopedIndex = scopedIndex + offset
+    if (targetScopedIndex < 0 || targetScopedIndex >= scopedOrder.length) return false
+
+    const currentScopedId = scopedOrder[scopedIndex]
+    const targetScopedId = scopedOrder[targetScopedIndex]
+    if (!currentScopedId || !targetScopedId) return false
+    scopedOrder[scopedIndex] = targetScopedId
+    scopedOrder[targetScopedIndex] = currentScopedId
+
+    let scopedCursor = 0
+    const mergedOrder: CheatSheetOrder = order.map((itemId) => {
+      if (!scopeSet.has(itemId)) return itemId
+      const nextId = scopedOrder[scopedCursor]
+      scopedCursor += 1
+      return nextId ?? itemId
+    })
+
+    cheatSheetOrder.value = mergedOrder
+    persistCheatSheetOrder()
+    applyCheatSheetOrder()
+    return true
   }
 
   const setSearchQuery = (query: string): void => {
@@ -297,7 +429,9 @@ export const useCheatSheetsStore = defineStore('cheatSheets', () => {
     updateCheatSheet,
     deleteCheatSheet,
     setCardLayout,
+    setCardLayouts,
     clearCardLayout,
+    moveCheatSheet,
     setSearchQuery,
     clearSearch,
     setActiveCategory,
